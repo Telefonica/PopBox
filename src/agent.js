@@ -147,6 +147,7 @@ if (cluster.isMaster && numCPUs !== 0) {
     server.get('/queue/:id', logic.getQueue);
     server.post('/queue/:id/pop', logic.popQueue);
     server.get('/queue/:id/peek', logic.peekQueue);
+    server.post('/queue/:id/subscribe', logic.subscribeQueue);
   });
 
   var evModules = config.evModules;
@@ -192,8 +193,3 @@ process.on('uncaughtException', function onUncaughtException(err) {
     }, 1000);
   }
 });
-
-
-
-
-

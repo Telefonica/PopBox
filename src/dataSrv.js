@@ -29,7 +29,6 @@ var dbCluster = require('./dbCluster.js');
 var helper = require('./dataHelper.js');
 var uuid = require('node-uuid');
 var async = require('async');
-var emitter = require('./emitterModule').getEmitter();
 var crypto = require('crypto');
 
 var path = require('path');
@@ -99,7 +98,6 @@ var pushTransaction = function(appPrefix, provision, callback) {
     }
   });
 
-
   function processOneId(dbTr, transactionId, queue, priority) {
     return function processOneIdAsync(callback) {
       var db = dbCluster.getDb(queue.id); //different DB for different Ids
@@ -113,14 +111,6 @@ var pushTransaction = function(appPrefix, provision, callback) {
         if (err) {
           manageError(err, callback);
         } else {
-          //Emitt pending event
-          ev = {
-            'transaction': extTransactionId,
-            'queue': queue.id,
-            'state': 'Pending',
-            'timestamp': new Date()
-          };
-          emitter.emit('NEWSTATE', ev);
           callback(null);
         }
       });
@@ -453,28 +443,12 @@ function checkData(queue, dbTr, transactionId, extTransactionId) {
         if (data && data.payload) {
           data.transactionId = transactionId;
           data.extTransactionId = extTransactionId;
-          //EMIT Delivered
-          ev = {
-            'transaction': extTransactionId,
-            'queue': queue.id,
-            'state': 'Delivered',
-            'callback': data.callback,
-            'timestamp': new Date()
-          };
-          emitter.emit('NEWSTATE', ev);
         } else {
           data = {
             'payload': null,
-            'transactionId': extTransactionId
+            'transactionId': transactionId,
+            'extTransactionId': extTransactionId
           };
-          //EMIT Expired
-          ev = {
-            'transaction': extTransactionId,
-            'queue': queue.id,
-            'state': 'Expired',
-            'timestamp': new Date()
-          };
-          emitter.emit('NEWSTATE', ev);
         }
         callback(null, data);
       }
@@ -721,6 +695,29 @@ var setExpirationDate = function(extTransactionId, date, cb) {
   });
 };
 
+var repushUndeliveredTransaction = function(appPrefix, queue, priority, extTransactionID, cb) {
+
+
+  var priority = priority + ':',
+      db = dbCluster.getDb(queue.id),
+      dbTr = dbCluster.getTransactionDb(extTransactionID),
+      transactionID = config.dbKeyTransPrefix + extTransactionID;
+
+  async.parallel([
+    helper.pushHeadParallel(db, {id: appPrefix + queue.id}, priority, transactionID),
+    helper.hsetHashParallel(dbTr, queue, transactionID, ':state', 'Pending')
+  ], function parallelEnd(err) {
+    dbCluster.free(db);
+    if (err) {
+      manageError(err, cb);
+    } else {
+      if (cb) {
+        cb(null);
+      }
+    }
+  });
+}
+
 //Public Interface Area
 
 /**
@@ -840,6 +837,16 @@ exports.setExpirationDate = setExpirationDate;
  * @param callback
  */
 exports.updateTransMeta = updateTransMeta;
+
+/**
+ *
+ * @param {string} appPrefix For secure/non secure behaviour.
+ * @param queueID
+ * @param priority
+ * @param transactionId
+ * @param callback
+ */
+exports.repushUndeliveredTransaction = repushUndeliveredTransaction;
 
 require('./hookLogger.js').init(exports, logger);
 
