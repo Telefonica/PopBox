@@ -19,12 +19,5 @@
  please contact with::dtc_support@tid.es
  */
 
-var configFile = './baseConfig.js';
-
-if (process.argv[2]) {
-  configFile = process.argv[2];
-} else if (process.env.CONFIG_FILE) {
-  configFile = process.env.CONFIG_FILE;
-}
-
-module.exports = require(configFile);
+module.exports = require('./baseConfig.js');
+module.exports.selectedDB = 1; //0..15 for   0 ->pre-production 1->test
