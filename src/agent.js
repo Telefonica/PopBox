@@ -161,7 +161,7 @@ if (cluster.isMaster && numCPUs !== 0) {
         'use strict';
         if (err) {
           logger.error('error subscribing event listener', err);
-          throw new InitError(['error subscribing event listener', err]);
+          throw new Error(['error subscribing event listener', err]);
         }
         else {
           servers.forEach(function(server) {
@@ -174,22 +174,10 @@ if (cluster.isMaster && numCPUs !== 0) {
 
 }
 
-
-function InitError(message) {
-  'use strict';
-  this.name = 'InitError';
-  this.message = message || '(no message)';
-}
-InitError.prototype = new Error();
-
-
 process.on('uncaughtException', function onUncaughtException(err) {
-  'use strict';
-  logger.warning('onUncaughtException', err);
-
-  if (err instanceof InitError) {
-    setTimeout(function() {
-      process.exit();
+    'use strict';
+    logger.error('onUncaughtException', err);
+    setTimeout(function () {
+        process.exit();
     }, 1000);
-  }
 });
