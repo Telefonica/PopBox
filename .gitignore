@@ -1,0 +1,4 @@
+node_modules/
+rpm/RPMS
+rpm/SRPMS
+rpm/BUILDROOT

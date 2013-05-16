@@ -1,0 +1,110 @@
+#!/bin/bash
+# description: Script to wake up Agent.js from Popbox module
+# chkconfig: 2345 85 15
+#########################################
+##Autor:        Juan Manuel Parrilla
+##Depar:        Release Engineering & Management
+#########################################
+## Values
+# processname: node /opt/popbox/src/Agent.js
+# config: /opt/popbox/src/config.js
+# pidfile: /var/run/popbox/popbox_Agent.pid
+
+. /etc/rc.d/init.d/functions
+
+INSTANCE=popbox_Agent
+BASE_PATH="/opt/popbox/src"
+PID_PATH=/var/run/popbox
+PID_FILE=${PID_PATH}/${INSTANCE}.pid
+BIN=/usr/bin/node
+AGENT="$BASE_PATH/Agent.js"
+REDIS_PROC=$(ps aux | grep -v grep | grep redis-server | awk '{print $2}')
+
+#Forever Module
+FOREVER="$BASE_PATH/node_modules/forever/bin/forever"
+LOG_PATH="/var/log/popbox"
+ERR_LOG="$LOG_PATH/forever_err.log"
+OUT_LOG="$LOG_PATH/forever_out.log"
+LOG_FILE="$LOG_PATH/forever.log"
+
+# Create mongo pids path if it does not exist
+if [ ! -d "${PID_PATH}" ]; then
+  mkdir -p "${PID_PATH}"
+fi
+
+is_up () {
+  pid="$(ps aux | grep -v grep | grep forever | awk '{print $2}')"
+  if [ "$pid" == "" ];then
+    {
+     stat_proc=0
+    } 
+  else
+    {
+     stat_proc=1
+    }
+  fi  
+  return $stat_proc
+}
+
+start()
+{
+  if [ "$REDIS_PROC" == "" ]; then
+    echo "To start PopBox, redis server must be active"
+    exit 1
+  else
+  is_up
+    if [ "$stat_proc" == "0" ];then
+      {
+        echo "Starting ${INSTANCE} with Forever module: "
+        $FOREVER start -a -l $LOG_FILE -e $ERR_LOG -o $OUT_LOG --pidFile $PID_FILE $AGENT
+        RETVAL=$?
+        [ $RETVAL -eq 0 ]
+      }
+    else
+      {
+        echo "$(is_up)"
+        echo "El proceso ya existe"
+        exit 0
+      } 
+    fi
+    return $RETVAL
+  fi
+}
+
+stop()
+{
+  echo -n $"Stopping Popbox: "
+  $FOREVER stop $AGENT 
+  RETVAL=$?
+  [ $RETVAL -eq 0 ] && rm -f $PID_FILE
+  return $RETVAL
+}
+
+restart () {
+stop
+start
+}
+
+RETVAL=0
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart|reload|force-reload)
+    restart
+    ;;
+  status)
+    status -p $PID_FILE $BIN
+    RETVAL=$?
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status|restart|reload|force-reload"
+    RETVAL=1
+esac
+
+exit $RETVAL
+
