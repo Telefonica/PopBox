@@ -1,7 +1,7 @@
 Summary: Popbox module to manage node + Redis value server
 Name: popbox
 Version: 0.0.2
-Release: 1
+Release: 2
 License: GNU
 BuildRoot: %{_topdir}/BUILDROOT/
 BuildArch: x86_64
@@ -15,6 +15,7 @@ Simple High-Performance High-Scalability Inbox Notification Service,
 require Redis 2.6 server, node 0.8 and npm only for installatión
 %define _prefix_company pdi-
 %define _project_name popbox 
+%define _project_user %{_project_name}
 %define _company_project_name %{_prefix_company}%{_project_name} 
 %define _service_name %{_company_project_name}
 %define _install_dir /opt
@@ -43,6 +44,13 @@ cd %{_build_root_project}
 # Only production modules
 npm install --production
 rm package.json
+
+# -------------------------------------------------------------------------------------------- #
+# pre-install section:
+# -------------------------------------------------------------------------------------------- #
+%pre
+/usr/sbin/useradd -c '%{_project_user}' -u 599 -s /bin/false -r -d %{_project_install_dir} %{_project_user} || :
+
 
 # -------------------------------------------------------------------------------------------- #
 # post-install section:
@@ -81,7 +89,7 @@ fi
 %clean
 rm -rf $RPM_BUILD_ROOT
 %files
-%defattr(755,root,root,755)
+%defattr(755,%{_project_user},%{_project_user},755)
 %config /etc/init.d/%{_service_name}
 %config /etc/logrotate.d/%{_company_project_name}
 %{_project_install_dir}
