@@ -2,108 +2,76 @@
 # description: Script to wake up Agent.js from Popbox module
 # chkconfig: 2345 85 15
 #########################################
-##Autor:        Juan Manuel Parrilla
+##Autor:        Carlos Enrique Gómez Gómez
 ##Depar:        Release Engineering & Management
 #########################################
 ## Values
-# processname: node /opt/popbox/src/Agent.js
+# processname: node popbox
 # config: /opt/popbox/src/config.js
-# pidfile: /var/run/popbox/popbox_Agent.pid
+# pidfile: /var/run/pdi-popbox/popbox.pid
 
-. /etc/rc.d/init.d/functions
+source /etc/rc.d/init.d/functions
 
-INSTANCE=popbox_Agent
-BASE_PATH="/opt/popbox/src"
-PID_PATH=/var/run/popbox
-PID_FILE=${PID_PATH}/${INSTANCE}.pid
-BIN=/usr/bin/node
-AGENT="$BASE_PATH/Agent.js"
-REDIS_PROC=$(ps aux | grep -v grep | grep redis-server | awk '{print $2}')
+RETVAL=0
+prog="popbox"
+home_dir="/opt/pdi-popbox"
+pidfile=/var/run/pdi-popbox/popbox.pid
 
-#Forever Module
-FOREVER="$BASE_PATH/node_modules/forever/bin/forever"
-LOG_PATH="/var/log/popbox"
-ERR_LOG="$LOG_PATH/forever_err.log"
-OUT_LOG="$LOG_PATH/forever_out.log"
-LOG_FILE="$LOG_PATH/forever.log"
-
-# Create mongo pids path if it does not exist
-if [ ! -d "${PID_PATH}" ]; then
-  mkdir -p "${PID_PATH}"
-fi
-
-is_up () {
-  pid="$(ps aux | grep -v grep | grep forever | awk '{print $2}')"
-  if [ "$pid" == "" ];then
-    {
-     stat_proc=0
-    } 
-  else
-    {
-     stat_proc=1
-    }
-  fi  
-  return $stat_proc
-}
-
-start()
-{
-  if [ "$REDIS_PROC" == "" ]; then
-    echo "To start PopBox, redis server must be active"
-    exit 1
-  else
-  is_up
-    if [ "$stat_proc" == "0" ];then
-      {
-        echo "Starting ${INSTANCE} with Forever module: "
-        $FOREVER start -a -l $LOG_FILE -e $ERR_LOG -o $OUT_LOG --pidFile $PID_FILE $AGENT
-        RETVAL=$?
-        [ $RETVAL -eq 0 ]
-      }
-    else
-      {
-        echo "$(is_up)"
-        echo "El proceso ya existe"
-        exit 0
-      } 
-    fi
-    return $RETVAL
-  fi
-}
-
-stop()
-{
-  echo -n $"Stopping Popbox: "
-  $FOREVER stop $AGENT 
+start() {
+  echo -n $"Starting $prog: "
+  daemon --user $prog --pidfile $pidfile $home_dir/bin/$prog
   RETVAL=$?
-  [ $RETVAL -eq 0 ] && rm -f $PID_FILE
+  echo
+  [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
   return $RETVAL
 }
 
-restart () {
-stop
-start
+stop() {
+    PID=`cat $pidfile 2>/dev/null`
+    if [ -n "$PID" ]; then
+        echo -n $"Shutting down $prog: "
+        kill -9 $PID
+        echo_success
+        RETVAL=0
+    else
+        echo -n $"$prog is not running"
+        echo_failure
+        RETVAL=1
+    fi
+
+    echo
+    return $RETVAL
 }
 
-RETVAL=0
+restart() {
+  stop
+  start
+}
+
+condrestart() {
+    [-e /var/lock/subsys/$prog] && restart || :
+}
 
 case "$1" in
   start)
-    start
-    ;;
+  start
+  ;;
   stop)
-    stop
-    ;;
-  restart|reload|force-reload)
-    restart
-    ;;
+  stop
+  ;;
   status)
-    status -p $PID_FILE $BIN
-    RETVAL=$?
-    ;;
-  *)
-    echo "Usage: $0 {start|stop|status|restart|reload|force-reload"
-    RETVAL=1
+  status -p $pidfile $prog
+  RETVAL=$?
+  ;;
+  restart)
+  restart
+  ;;
+  condrestart|try-restart)
+  condrestart
+  ;;
+   *)
+  echo $"Usage: $0 {start|stop|status|restart|condrestart}"
+  RETVAL=1
 esac
 
 exit $RETVAL

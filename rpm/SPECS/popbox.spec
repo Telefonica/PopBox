@@ -38,6 +38,8 @@ rm -Rf $RPM_BUILD_ROOT && mkdir -p $RPM_BUILD_ROOT
 cp -R %{_srcdir}/lib  %{_srcdir}/package.json %{_srcdir}/index.js \
       %{_srcdir}/bin %{_srcdir}/License.txt %{_build_root_project}
 cp -R %{_sourcedir}/*  %{buildroot}
+mkdir -p %{buildroot}/var/run/%{_company_project_name}
+mkdir -p %{buildroot}/var/log/%{_company_project_name}
 
 %build
 cd %{_build_root_project}
@@ -93,3 +95,4 @@ rm -rf $RPM_BUILD_ROOT
 %config /etc/init.d/%{_service_name}
 %config /etc/logrotate.d/%{_company_project_name}
 %{_project_install_dir}
+/var/
