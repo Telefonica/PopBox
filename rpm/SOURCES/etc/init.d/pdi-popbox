@@ -36,32 +36,32 @@ start() {
     touch $logfile
     chown -R $user $(dirname $logfile)
     mkdir -p $(dirname $pidfile)
-    touch $pidfile
+    #touch $pidfile
     chown $user $(dirname $pidfile)
  
     # Launch the application
     cd $home_dir
+    echo daemon --user=$user \
+      $forever start -p $forever_dir --pidFile $pidfile -l $logfile -a \
+      $SOURCE_DIR/$SOURCE_FILE
     daemon --user=$user \
       $forever start -p $forever_dir --pidFile $pidfile -l $logfile -a \
       $SOURCE_DIR/$SOURCE_FILE
     RETVAL=$?
-    cd -
   else
     echo "Instance already running"
     RETVAL=0
   fi
 }
- 
+
 stop() {
-  echo -n "Shutting down $NAME node instance : "
-  if [ "$foreverid" != "" ]; then
-    #$node $SOURCE_DIR/prepareForStop.js
-    echo HHH $forever stop -p $forever_dir $pid
-    $forever stop -p $forever_dir $pid
-  else
-    echo "Instance is not running";
-  fi
+  echo "Shutting down $NAME node instance : "
+  processes=$(ps -ef|grep ^$user|grep -v "$home_dir/node_modules/forever"|awk '{print $2" "$3}')
+  [ "$processes" == "" ] && echo "Any $user proccess is up" && echo_warning && RETVAL=1 && return $RETVAL
+  kill -9 $processes
   RETVAL=$?
+  rm -Rf $pidfile
+  [ "$RETVAL" == "0" ] && echo_success
 }
  
 if [ -f $pidfile ]; then
