@@ -6,6 +6,9 @@ License: GNU
 BuildRoot: %{_topdir}/BUILDROOT/
 BuildArch: x86_64
 Requires: nodejs >= 0.8
+Requires(post): /sbin/chkconfig /usr/sbin/useradd
+Requires(preun): /sbin/chkconfig, /sbin/service
+Requires(postun): /sbin/service
 Group: Applications/Popbox
 Vendor: Telefonica I+D
 BuildRequires: npm
@@ -74,7 +77,7 @@ cd /etc/init.d
 
 #Service 
 echo "Creating %{_service_name} service:"
-chkconfig --level 2345 %{_service_name} on
+chkconfig --add %{_service_name}
 
 #Config 
 rm -Rf %{_conf_dir} && mkdir -p %{_conf_dir}
@@ -92,8 +95,9 @@ if [ $1 == 0 ]; then
    [ -d %{_popbox_log_dir} ] && rm -rfv %{_popbox_log_dir}
    [ -d %{_project_install_dir} ] && rm -rfv %{_project_install_dir}
    echo "Destroying %{_service_name} service:"
-   chkconfig %{_service_name} off
+   chkconfig --del %{_service_name}
    rm -Rf /etc/init.d/%{_service_name}
+   
    echo "Done"
 fi
 
