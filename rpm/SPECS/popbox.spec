@@ -57,9 +57,11 @@ RET_VAL=$?
 if [ "$RET_VAL" != "0" ]; then
       /usr/sbin/useradd -c '%{_project_user}' -u 699 -s /bin/false \
       -r -d %{_project_install_dir} %{_project_user}
-		RET_VAL=$?
-		[ "$RET_VAL" != 0 ] && echo "[ERROR] Unable create %{_project_user} user" \
-		&& exit $RET_VAL
+      RET_VAL=$?
+      if [ "$RET_VAL" != "0" ]; then
+         echo "[ERROR] Unable create popbox user" \
+         exit $RET_VAL
+      fi
 fi
 
 # -------------------------------------------------------------------------------------------- #
