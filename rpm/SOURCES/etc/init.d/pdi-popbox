@@ -6,73 +6,95 @@
 ##Depar:        Release Engineering & Management
 #########################################
 ## Values
-# processname: node popbox
+# processname: popbox
 # config: /opt/popbox/src/config.js
-# pidfile: /var/run/pdi-popbox/popbox.pid
+# pidfile: /var/run/popbox.pid
 
 source /etc/rc.d/init.d/functions
 
-RETVAL=0
-prog="popbox"
+NAME=popbox
+SOURCE_DIR=/opt/pdi-popbox/bin
+SOURCE_FILE=popbox
+ 
+user=popbox
+pidfile=/var/run/pdi-popbox/$NAME.pid
+logfile=/var/log/pdi-popbox/$NAME.log
+forever_dir=/var/run/forever
+ 
+node=node
+sed=sed
 home_dir="/opt/pdi-popbox"
-pidfile=/var/run/pdi-popbox/popbox.pid
-
+forever=$home_dir/node_modules/forever/bin/forever 
+ 
 start() {
-  echo -n $"Starting $prog: "
-  daemon --user $prog --pidfile $pidfile $home_dir/bin/$prog
-  RETVAL=$?
-  echo
-  [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
-  return $RETVAL
+  echo "Starting $NAME node instance: "
+ 
+  if [ "$foreverid" == "" ]; then
+    # Create the log and pid files, making sure that
+    # the target use has access to them
+    mkdir -p $(dirname $logfile)
+    touch $logfile
+    chown -R $user $(dirname $logfile)
+    mkdir -p $(dirname $pidfile)
+    touch $pidfile
+    chown $user $(dirname $pidfile)
+ 
+    # Launch the application
+    cd $home_dir
+    daemon --user=$user \
+      $forever start -p $forever_dir --pidFile $pidfile -l $logfile -a \
+      $SOURCE_DIR/$SOURCE_FILE
+    RETVAL=$?
+    cd -
+  else
+    echo "Instance already running"
+    RETVAL=0
+  fi
 }
-
+ 
 stop() {
-    PID=`cat $pidfile 2>/dev/null`
-    if [ -n "$PID" ]; then
-        echo -n $"Shutting down $prog: "
-        kill -9 $PID
-        echo_success
-        RETVAL=0
-    else
-        echo -n $"$prog is not running"
-        echo_failure
-        RETVAL=1
-    fi
-
-    echo
-    return $RETVAL
+  echo -n "Shutting down $NAME node instance : "
+  if [ "$foreverid" != "" ]; then
+    #$node $SOURCE_DIR/prepareForStop.js
+    echo HHH $forever stop -p $forever_dir $pid
+    $forever stop -p $forever_dir $pid
+  else
+    echo "Instance is not running";
+  fi
+  RETVAL=$?
 }
+ 
+if [ -f $pidfile ]; then
+  read pid < $pidfile
+else
+  pid=""
+fi
+echo HHHH pid $pid
+if [ "$pid" != "" ]; then
+  # Gnarly sed usage to obtain the foreverid.
+  sed1="/$pid\]/p"
+  sed2="s/.*\[\([0-9]\+\)\].*\s$pid\].*/\1/g"
+  echo  "foreverid=$forever list -p $forever_dir | $sed -n $sed1 | $sed $sed2"
 
-restart() {
-  stop
-  start
-}
 
-condrestart() {
-    [-e /var/lock/subsys/$prog] && restart || :
-}
-
+  foreverid=`$forever list -p $forever_dir | $sed -n $sed1 | $sed $sed2`
+else
+  foreverid=""
+fi
+ 
 case "$1" in
   start)
-  start
-  ;;
+    start
+    ;;
   stop)
-  stop
-  ;;
+    stop
+    ;;
   status)
-  status -p $pidfile $prog
-  RETVAL=$?
-  ;;
-  restart)
-  restart
-  ;;
-  condrestart|try-restart)
-  condrestart
-  ;;
-   *)
-  echo $"Usage: $0 {start|stop|status|restart|condrestart}"
-  RETVAL=1
+    status -p ${pidfile}
+    ;;
+  *)
+    echo "Usage:  {start|stop|status}"
+    exit 1
+    ;;
 esac
-
 exit $RETVAL
-

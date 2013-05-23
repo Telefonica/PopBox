@@ -51,8 +51,16 @@ rm package.json
 # pre-install section:
 # -------------------------------------------------------------------------------------------- #
 %pre
-/usr/sbin/useradd -c '%{_project_user}' -u 599 -s /bin/false -r -d %{_project_install_dir} %{_project_user} || :
-
+echo "[INFO] Creating %{_project_user} user"
+grep ^%{_project_user} /etc/passwd 
+RET_VAL=$?
+if [ "$RET_VAL" != "0" ]; then
+      /usr/sbin/useradd -c '%{_project_user}' -u 699 -s /bin/false \
+      -r -d %{_project_install_dir} %{_project_user}
+		RET_VAL=$?
+		[ "$RET_VAL" != 0 ] && echo "[ERROR] Unable create %{_project_user} user" \
+		&& exit $RET_VAL
+fi
 
 # -------------------------------------------------------------------------------------------- #
 # post-install section:
