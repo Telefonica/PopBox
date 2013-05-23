@@ -1,14 +1,14 @@
 #!/bin/bash
 # description: Script to wake up Agent.js from Popbox module
-# chkconfig: 2345 85 15
-#########################################
-##Autor:        Carlos Enrique Gómez Gómez
-##Depar:        Release Engineering & Management
-#########################################
+# chkconfig: 2345 85 11
+###########################################
+##Author:  Carlos Enrique Gómez Gómez
+##Depar:   Release Engineering & Management
+###########################################
 ## Values
 # processname: popbox
-# config: /opt/popbox/src/config.js
-# pidfile: /var/run/popbox.pid
+# config: /opt/pdi-popbox/lib/baseConfig.js
+# pidfile: /var/run/pdi-popbox/popbox.pid
 
 source /etc/rc.d/init.d/functions
 
@@ -41,27 +41,30 @@ start() {
  
     # Launch the application
     cd $home_dir
-    echo daemon --user=$user \
-      $forever start -p $forever_dir --pidFile $pidfile -l $logfile -a \
-      $SOURCE_DIR/$SOURCE_FILE
     daemon --user=$user \
       $forever start -p $forever_dir --pidFile $pidfile -l $logfile -a \
       $SOURCE_DIR/$SOURCE_FILE
     RETVAL=$?
+    echo
   else
     echo "Instance already running"
     RETVAL=0
+    echo
   fi
 }
 
 stop() {
-  echo "Shutting down $NAME node instance : "
-  processes=$(ps -ef|grep ^$user|grep -v "$home_dir/node_modules/forever"|awk '{print $2" "$3}')
-  [ "$processes" == "" ] && echo "Any $user proccess is up" && echo_warning && RETVAL=1 && return $RETVAL
-  kill -9 $processes
-  RETVAL=$?
+  [ "$pid" == "" ] && return ;
+  echo "Shutting down $NAME(pid:$pid) node instance : "
+  processes=$(ps -ef|grep ^$user|grep $pid|grep -v "$home_dir/node_modules/forever"|awk '{print $2" "$3}' 2>/dev/null)
+  [ "$processes" == "" ] && echo "Any $user proccess is up" && RETVAL=1
+  if [ "$RETVAL" != "1" ]; then
+     kill -9 $processes
+     RETVAL=$?
+  fi
   rm -Rf $pidfile
   [ "$RETVAL" == "0" ] && echo_success
+  echo
 }
  
 if [ -f $pidfile ]; then
@@ -69,14 +72,10 @@ if [ -f $pidfile ]; then
 else
   pid=""
 fi
-echo HHHH pid $pid
 if [ "$pid" != "" ]; then
   # Gnarly sed usage to obtain the foreverid.
   sed1="/$pid\]/p"
   sed2="s/.*\[\([0-9]\+\)\].*\s$pid\].*/\1/g"
-  echo  "foreverid=$forever list -p $forever_dir | $sed -n $sed1 | $sed $sed2"
-
-
   foreverid=`$forever list -p $forever_dir | $sed -n $sed1 | $sed $sed2`
 else
   foreverid=""
